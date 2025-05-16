@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простий CRUD Додаток</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f8f9fa; color: #212529; line-height: 1.5; }
+        .container { max-width: 900px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #343a40; margin-top: 0; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        h2 { margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px;}
+        form { margin-bottom: 30px; padding: 20px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #fdfdff;}
+        label { display: block; margin-bottom: 8px; font-weight: 500; color: #495057; }
+        input[type="text"], textarea {
+            width: calc(100% - 22px); padding: 10px; margin-bottom: 15px;
+            border: 1px solid #ced4da; border-radius: 4px; font-size: 1rem;
+            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        }
+        input[type="text"]:focus, textarea:focus { border-color: #80bdff; outline: 0; box-shadow: 0 0 0 .2rem rgba(0,123,255,.25); }
+        textarea { min-height: 80px; resize: vertical; }
+        .form-actions { margin-top: 15px; display: flex; gap: 10px; }
+        button[type="submit"], .button {
+            padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 1rem; font-weight: 500; text-decoration: none; display: inline-block;
+            transition: background-color .15s ease-in-out;
+        }
+        button[type="submit"] { background-color: #28a745; color: white; }
+        button[type="submit"]:hover { background-color: #218838; }
+        .button.cancel { background-color: #6c757d; color: white; }
+        .button.cancel:hover { background-color: #5a6268; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #e9ecef; font-weight: 600; color: #495057;}
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .actions .button { padding: 6px 12px; font-size: 0.9rem; margin-right: 5px;}
+        .actions .edit-btn { background-color: #007bff; color: white; }
+        .actions .edit-btn:hover { background-color: #0069d9; }
+        .actions .delete-btn { background-color: #dc3545; color: white; }
+        .actions .delete-btn:hover { background-color: #c82333; }
+        .alert {
+            padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px;
+            font-size: 0.95rem;
+        }
+        .alert-success { color: #155724; background-color: #d4edda; border-color: #c3e6cb; }
+        .alert-warning { color: #856404; background-color: #fff3cd; border-color: #ffeeba; }
+        .alert-danger { color: #721c24; background-color: #f8d7da; border-color: #f5c6cb; }
+        .no-items { text-align: center; color: #6c757d; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CRUD Застосунок на Python + MongoDB</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% if db_error %}
+            <div class="alert alert-danger">
+                <strong>Помилка бази даних!</strong> Не вдалося підключитися до бази даних. Будь ласка, перевірте налаштування або зверніться до адміністратора.
+            </div>
+        {% else %}
+            <h2>{% if item_to_edit %}Редагувати запис ID: {{ item_to_edit._id }}{% else %}Додати новий запис{% endif %}</h2>
+            <form method="POST" action="{{ url_for('update_item_route', item_id_str=item_to_edit._id) if item_to_edit else url_for('add_item_route') }}">
+                <div>
+                    <label for="name">Назва:</label>
+                    <input type="text" id="name" name="name" value="{{ request.form.name if request.form.name else (item_to_edit.name if item_to_edit else '') }}" required>
+                </div>
+                <div>
+                    <label for="description">Опис:</label>
+                    <textarea id="description" name="description">{{ request.form.description if request.form.description else (item_to_edit.description if item_to_edit else '') }}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">{% if item_to_edit %}Оновити запис{% else %}Додати запис{% endif %}</button>
+                    {% if item_to_edit %}
+                    <a href="{{ url_for('index') }}" class="button cancel">Скасувати</a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <h2>Останні 10 записів</h2>
+            {% if items %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Назва</th>
+                        <th>Опис</th>
+                        <th>Створено</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item._id }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.description | truncate(80, True) if item.description else '-' }}</td>
+                        <td>{{ item.created_at_formatted }}</td>
+                        <td class="actions">
+                            <a href="{{ url_for('index', item_id_str=item._id) }}" class="button edit-btn">Редагувати</a>
+                            <form method="POST" action="{{ url_for('delete_item_route', item_id_str=item._id) }}" style="display: inline;">
+                                <button type="submit" class="button delete-btn" onclick="return confirm('Ви впевнені, що хочете видалити цей запис?');">Видалити</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="no-items">Записів ще немає. Додайте перший!</p>
+            {% endif %}
+        {% endif %} {# кінець блоку db_error #}
+    </div>
+</body>
+</html>
